@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Badminton Doubles Tournament Scheduler</title>
+  <style>
+    :root{
+      --bg:#0b1220; --card:#111a2e; --muted:#93a0b0; --text:#e8eef7; --accent:#74c69d; --danger:#ff6b6b; --brand:#5da1ff;
+    }
+    html,body{height:100%;}
+    body{margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Helvetica,Arial,sans-serif; background:linear-gradient(180deg,var(--bg),#0e1730 40%,#0b1220); color:var(--text);}
+    .wrap{max-width:1200px; margin:0 auto; padding:24px;}
+    header{display:flex; align-items:center; gap:16px; flex-wrap:wrap;}
+    h1{font-size:clamp(24px,3.5vw,40px); margin:0; letter-spacing:.3px;}
+    .badge{font-size:12px; color:#0b1220; background:var(--accent); padding:6px 10px; border-radius:999px; font-weight:700; text-transform:uppercase; letter-spacing:.08em;}
+    .grid{display:grid; gap:18px; grid-template-columns: 320px 1fr;}
+    @media (max-width: 920px){ .grid{grid-template-columns: 1fr;} }
+
+    .card{background:rgba(255,255,255,.04); backdrop-filter: blur(6px); border:1px solid rgba(255,255,255,.08); border-radius:20px; box-shadow:0 10px 30px rgba(0,0,0,.35);}
+    .card h2{margin:0 0 10px; font-size:18px; color:#cfe1ff;}
+    .card .body{padding:18px;}
+
+    .players{display:grid; grid-template-columns: 1fr; gap:10px; max-height:55vh; overflow:auto; padding-right:6px;}
+    .player{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; background:rgba(255,255,255,.03); border:1px solid rgba(255,255,255,.06); border-radius:12px;}
+    .player label{display:flex; align-items:center; gap:10px; cursor:pointer; font-size:16px;}
+    .pill{font-size:12px; padding:4px 8px; border-radius:999px; border:1px solid rgba(255,255,255,.12); color:var(--muted)}
+
+    .controls{display:grid; gap:10px; grid-template-columns: repeat(2, minmax(0,1fr));}
+    .controls .row{display:flex; gap:10px; align-items:center;}
+
+    button, select, input[type="number"], input[type="text"]{
+      background:#0e1a34; color:var(--text); border:1px solid rgba(255,255,255,.16); border-radius:12px; padding:10px 12px; font-size:15px; outline:none; transition:.15s ease; width:100%; box-sizing:border-box;
+    }
+    button{cursor:pointer; font-weight:700; letter-spacing:.2px;}
+    button.primary{background:linear-gradient(180deg,#2f6bff,#2757d8); border:none;}
+    button.ghost{background:transparent; border:1px dashed rgba(255,255,255,.22);}    
+    button.danger{background:linear-gradient(180deg,#ff7070,#e45353); border:none;}
+    button:disabled{opacity:.5; cursor:not-allowed;}
+
+    .schedule{padding:6px 6px 20px;}
+    .round{padding:14px; border:1px solid rgba(255,255,255,.12); border-radius:16px; margin:14px 0; background:rgba(255,255,255,.03);} 
+    .round h3{margin:0 0 10px; font-size:18px; color:#d2ffe8;}
+    .match{display:flex; align-items:center; justify-content:space-between; gap:12px; padding:10px 12px; margin:8px 0; background:#0c1731; border:1px solid rgba(255,255,255,.08); border-radius:12px; font-size:clamp(16px,2.2vw,22px);}  
+    .vs{opacity:.7; font-weight:700;}
+    .team{display:flex; align-items:center; gap:8px;}
+    .tag{font-size:12px; padding:4px 8px; border-radius:999px; background:#0f234a; border:1px solid rgba(255,255,255,.12);} 
+
+    .toolbar{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
+
+    .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:20px; background:rgba(0,0,0,.72); color:#fff; padding:10px 14px; border-radius:10px; font-size:14px; opacity:0; pointer-events:none; transition:.2s ease;}
+    .toast.show{opacity:1;}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <span class="badge">Doubles</span>
+      <h1>Badminton Tournament Scheduler</h1>
+    </header>
+
+    <div class="grid" id="app">
+      <!-- Left: Players & Controls -->
+      <section class="card">
+        <div class="body">
+          <h2>Players (hardcoded)</h2>
+          <div class="players" id="playersList"></div>
+          <div style="height:10px"></div>
+
+          <div class="controls">
+            <div class="row"><input type="number" id="courts" min="1" value="2" /><span class="pill">Courts</span></div>
+            <div class="row"><input type="number" id="maxRounds" min="1" value="6" /><span class="pill">Max rounds</span></div>
+            <div class="row"><select id="pairingMode">
+              <option value="all">All unique matches</option>
+              <option value="balanced">Balanced (spread players)</option>
+            </select></div>
+            <div class="row"><select id="teamPolicy">
+              <option value="free">Any partners</option>
+              <option value="fixed">Fixed pairs (seeded)</option>
+            </select></div>
+          </div>
+
+          <div style="height:12px"></div>
+          <div class="toolbar">
+            <button class="primary" id="generateBtn">Generate schedule</button>
+            <button id="shuffleBtn">Shuffle matches</button>
+            <button class="ghost" id="bigScreenBtn">Big screen mode</button>
+            <button id="copyBtn">Copy to clipboard</button>
+            <button class="danger" id="resetBtn">Reset</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right: Schedule -->
+      <section class="card">
+        <div class="body">
+          <h2>Schedule</h2>
+          <div id="summary" class="pill" style="display:inline-block;margin-bottom:8px"></div>
+          <div class="schedule" id="schedule"></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="toast" id="toast">Copied!</div>
+
+  <script>
+    // --- Hardcoded players ---
+    const PLAYERS = [
+      "R G Brajesh","Nachiket Tapas","Harshwardhan","Rohit Miri",
+      "J P Patra","Vivek Mishra","Divya Shukla","Abhishek Misal",
+      "Pankaj Swarnakar","Shesh Narayan",
+      "Player 11","Player 12","Player 13","Player 14","Player 15"
+    ];
+
+    // Optional: fixed teams (used when teamPolicy === 'fixed')
+    const FIXED_TEAMS = [
+      ["R G Brajesh","Nachiket Tapas"], ["Harshwardhan","Rohit Miri"],
+      ["J P Patra","Vivek Mishra"], ["Divya Shukla","Abhishek Misal"],
+      ["Pankaj Swarnakar","Shesh Narayan"], ["Player 11","Player 12"]
+    ];
+
+    // Utilities
+    const $ = sel => document.querySelector(sel);
+    function shuffle(arr){
+      for(let i=arr.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [arr[i],arr[j]]=[arr[j],arr[i]];
+      }
+      return arr;
+    }
+
+    function uniqPairs(list){
+      const pairs=[]; for(let i=0;i<list.length;i++) for(let j=i+1;j<list.length;j++) pairs.push([list[i],list[j]]);
+      return pairs;
+    }
+
+    function teamOverlaps(t1,t2){ return t1.some(p=>t2.includes(p)); }
+
+    function possibleMatchesFromPairs(pairs){
+      const matches=[]; 
+      for(let i=0;i<pairs.length;i++){
+        for(let j=i+1;j<pairs.length;j++){
+          if(!teamOverlaps(pairs[i],pairs[j])) matches.push([pairs[i],pairs[j]]);
+        }
+      }
+      return matches;
+    }
+
+    function balancedPairs(players){
+      // Simple heuristic: snake seeding → (1,mid+1), (2,mid+2), ...
+      const sorted=[...players];
+      const mid=Math.floor(sorted.length/2);
+      const a=sorted.slice(0,mid), b=sorted.slice(mid);
+      const pairs=[]; for(let i=0;i<Math.min(a.length,b.length);i++) pairs.push([a[i],b[i]]);
+      if(a.length>b.length) pairs.push([a[a.length-1],"(Bye)"]); // odd case
+      return pairs;
+    }
+
+    function buildRounds(matches, courts, maxRounds){
+      // Greedy packing: fill each round with up to `courts` matches, avoiding player reuse within the same round
+      const remaining = [...matches];
+      const rounds=[]; let guard=0;
+      while(remaining.length && rounds.length < maxRounds && guard < 5000){
+        guard++;
+        const used=new Set(); const round=[];
+        for(let i=0;i<remaining.length && round.length<courts; i++){
+          const [t1,t2]=remaining[i];
+          const players=[...t1,...t2];
+          if(players.every(p=>!used.has(p))){
+            round.push(remaining.splice(i,1)[0]);
+            players.forEach(p=>used.add(p));
+            i--; // adjust index after splice
+          }
+        }
+        if(round.length===0) break; // cannot schedule further without conflicts
+        rounds.push(round);
+      }
+      return rounds;
+    }
+
+    function generateSchedule(){
+      const active = Array.from(document.querySelectorAll('.player input:checked')).map(ch=>ch.value);
+      const courts = Math.max(1, parseInt($('#courts').value||"2",10));
+      const maxRounds = Math.max(1, parseInt($('#maxRounds').value||"6",10));
+      const mode = $('#pairingMode').value; // all | balanced
+      const teamPolicy = $('#teamPolicy').value; // free | fixed
+
+      if(active.length < 4){
+        $('#schedule').innerHTML = `<div class=\"pill\">Need at least 4 available players.</div>`;
+        $('#summary').textContent = '';
+        return;
+      }
+
+      let pairs=[];
+      if(teamPolicy === 'fixed'){
+        pairs = FIXED_TEAMS.filter(([a,b])=>active.includes(a) && active.includes(b));
+      } else {
+        if(mode==='balanced'){
+          pairs = balancedPairs(active);
+        } else {
+          pairs = uniqPairs(active);
+        }
+      }
+
+      // Remove any bye pairs
+      pairs = pairs.filter(t => !t.includes('(Bye)'));
+      if(pairs.length < 2){
+        $('#schedule').innerHTML = `<div class=\"pill\">Not enough pairs can be formed.</div>`;
+        $('#summary').textContent = '';
+        return;
+      }
+
+      // Create all valid matches (teams share no players)
+      let matches = possibleMatchesFromPairs(pairs);
+      if(!matches.length){
+        $('#schedule').innerHTML = `<div class=\"pill\">No valid team-vs-team matches from current selection.</div>`;
+        $('#summary').textContent = '';
+        return;
+      }
+
+      // Shuffle for variety
+      matches = shuffle(matches);
+
+      // Pack into rounds based on courts
+      const rounds = buildRounds(matches, courts, maxRounds);
+
+      // Render
+      const totalMatches = rounds.reduce((a,r)=>a+r.length,0);
+      $('#summary').textContent = `${active.length} active players • ${pairs.length} teams • ${totalMatches} matches • ${rounds.length} rounds`;
+      const frag = document.createDocumentFragment();
+      rounds.forEach((round,idx)=>{
+        const wrap=document.createElement('div');
+        wrap.className='round';
+        wrap.innerHTML = `<h3>Round ${idx+1}</h3>`;
+        round.forEach((m,i)=>{
+          const [t1,t2]=m;
+          const el=document.createElement('div');
+          el.className='match';
+          el.innerHTML = `<div class=\"team\"><span class=\"tag\">C${i+1}</span> ${t1[0]} &nbsp;•&nbsp; ${t1[1]}</div>
+                          <span class=\"vs\">vs</span>
+                          <div class=\"team\">${t2[0]} &nbsp;•&nbsp; ${t2[1]}</div>`;
+          wrap.appendChild(el);
+        });
+        frag.appendChild(wrap);
+      });
+      const cont=$('#schedule');
+      cont.innerHTML='';
+      cont.appendChild(frag);
+    }
+
+    function copySchedule(){
+      const schedule = $('#schedule').innerText.trim();
+      if(!schedule){ showToast('Nothing to copy.'); return; }
+      navigator.clipboard.writeText(schedule).then(()=>showToast('Schedule copied.')).catch(()=>showToast('Copy failed'));
+    }
+
+    function showToast(msg){
+      const t=$('#toast'); t.textContent=msg; t.classList.add('show');
+      setTimeout(()=>t.classList.remove('show'),1500);
+    }
+
+    function enterBigScreen(){
+      document.documentElement.requestFullscreen?.();
+      document.body.style.cursor='none';
+      document.querySelectorAll('.card').forEach(c=>c.style.background='transparent');
+      document.querySelectorAll('.round').forEach(r=>r.style.background='transparent');
+    }
+
+    function resetAll(){
+      document.querySelectorAll('.player input').forEach(ch=>ch.checked=false);
+      $('#schedule').innerHTML='';
+      $('#summary').textContent='';
+    }
+
+    function renderPlayers(){
+      const box = $('#playersList');
+      box.innerHTML='';
+      PLAYERS.forEach((name,idx)=>{
+        const row=document.createElement('div');
+        row.className='player';
+        row.innerHTML = `
+          <label>
+            <input type=\"checkbox\" value=\"${name}\" />
+            <span>${name}</span>
+          </label>
+          <span class=\"pill\">#${idx+1}</span>
+        `;
+        box.appendChild(row);
+      });
+    }
+
+    // Init
+    renderPlayers();
+    $('#generateBtn').addEventListener('click', generateSchedule);
+    $('#shuffleBtn').addEventListener('click', ()=>{generateSchedule(); showToast('Shuffled');});
+    $('#copyBtn').addEventListener('click', copySchedule);
+    $('#bigScreenBtn').addEventListener('click', enterBigScreen);
+    $('#resetBtn').addEventListener('click', resetAll);
+  </script>
+</body>
+</html>
