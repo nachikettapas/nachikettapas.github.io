@@ -10,13 +10,17 @@
       --card:#181e34;
       --alt:#232c41;
       --muted:#93a0b0;
-      --text:#e8eef7;
+      --text:#fff;
       --accent:#ffe57f;
       --header:#244ea7;
       --brand:#5da1ff;
       --rowA:#232c41;
       --rowB:#1a2740;
       --pill:#191e33;
+      --gold:#ffe57f;
+      --btn-bg:#2457e9;
+      --btn-dark:#14213a;
+      --input-bg:#17233b;
     }
     html,body{height:100%;}
     body{
@@ -29,7 +33,7 @@
     .wrap{
       max-width:1100px;
       margin:0 auto;
-      padding:30px 6px;
+      padding:28px 6px 20px 6px;
     }
     header{
       display:flex;
@@ -74,6 +78,7 @@
       margin:0 0 10px;
       font-size:18px;
       color:var(--accent);
+      font-weight: bold;
     }
     .card .body{padding:0;}
     .players{
@@ -90,37 +95,38 @@
     .controls{
       display:grid; gap:10px; grid-template-columns:repeat(2, minmax(0,1fr));}
     .controls .row{
-      display:flex; gap:10px; align-items:center;}
+      display:flex; gap:8px; align-items:center;}
     button, select, input[type="number"], input[type="text"]{
-      background: var(--pill);
-      color: var(--accent);
-      border: 1px solid #132231;
+      background: var(--input-bg);
+      color: var(--gold);
+      border: 1px solid #31466c;
       border-radius: 10px;
-      padding:10px 10px; font-size:15px; outline:none; transition:.15s ease;}
+      padding:10px 9px; font-size:15px; outline:none; transition:.15s ease;}
     button{cursor:pointer; font-weight:700; letter-spacing:.2px;}
-    button.primary{background:linear-gradient(180deg,#3748a8,#2f6bff); border:none; color:#fff;}
-    button.ghost{background:transparent; border:1px dashed var(--accent);}
+    button.primary{background:linear-gradient(180deg,var(--btn-bg),#274fbc 80%); border:none; color:var(--accent);}
+    button.ghost{background:var(--btn-dark); border:1px dashed var(--accent);}
     button:disabled{opacity:.5; cursor:not-allowed;}
     .toolbar{display:flex; flex-wrap:wrap; gap:10px; align-items:center;}
+    .toolbar button {min-width:90px;}
     main{margin-left:0;}
     .schedule{padding:5px 5px 20px;}
     .round{padding:14px; border-radius:16px; margin:14px 0; background: var(--alt);}
-    .round h3{margin:0 0 10px; font-size:18px; color:var(--accent);}
+    .round h3{margin:0 0 10px; font-size:18px; color:var(--gold);}
     .match{
       display:flex; align-items:center; justify-content:space-between; gap:12px; 
       background: var(--rowA);
       border-radius:12px; padding:11px 14px; margin:8px 0;
       font-size:clamp(16px,2.2vw,22px);}
-    .vs{opacity:.8; font-weight:700;}
+    .vs{opacity:.85; font-weight:700;}
     .team{display:flex; align-items:center; gap:8px;}
     .tag{
       font-size:12px; padding:4px 8px; border-radius:999px; background:var(--header); color:#fff;}
-    .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:20px; background:rgba(0,0,0,.72); color:#fff; padding:10px 14px; border-radius:10px; font-size:14px; opacity:0; pointer-events:none; transition:.2s ease;}
+    .toast{position:fixed; left:50%; transform:translateX(-50%); bottom:20px; background:#121727e8; color:#ffe57f; padding:10px 14px; border-radius:10px; font-size:14px; opacity:0; pointer-events:none; transition:.2s ease;}
     .toast.show{opacity:1;}
     /* --- Points Table styles --- */
     .points-table-wrap {
       overflow-x: auto;
-      margin-top: 10px;
+      margin-top: 6px;
     }
     #pointsTable {
       min-width: 420px;
@@ -134,7 +140,7 @@
     }
     #pointsTable th, #pointsTable td {
       text-align: center;
-      padding: 10px 8px;
+      padding: 9px 7px;
     }
     #pointsTable th {
       background: linear-gradient(90deg,var(--header) 55%,#26476e 100%);
@@ -153,14 +159,14 @@
       background: var(--rowA);
     }
     #pointsTable td input {
-      background: var(--pill);
+      background: var(--btn-dark);
       color: var(--accent);
       font-size: 1em;
       text-align: center;
       font-weight: bold;
       border: none;
       border-radius: 7px;
-      width: 54px;
+      width: 56px;
       padding: 4px 2px;
       outline: none;
       margin:0;
@@ -179,10 +185,19 @@
       min-width: 125px;
     }
     #pointsTable td.total {
-      color: var(--accent);
-      font-size: 1.07em;
+      color: var(--gold);
+      font-size: 1.08em;
       font-weight: bold;
       background: #161a2a;
+    }
+
+    /* Fixes for smaller screens */
+    @media (max-width: 700px){
+      .wrap{padding:10px 2vw;}
+      .card{padding:10px 5px;}
+      h1{font-size:1.3rem;}
+      .players{max-height:32vh;}
+      #pointsTable{font-size:.95rem;}
     }
   </style>
 </head>
@@ -234,16 +249,16 @@
           </div>
         </div>
       </section>
-      <!-- Right: Points Table and Tournament Schedule -->
+      <!-- Right: Tournament Schedule and Points Table -->
       <main>
-        <div class="card" style="margin-bottom:16px;">
-          <strong>Points Table:</strong>
+        <div id="summary" style="margin-bottom:15px;color:var(--accent);font-weight:bold;font-size:1.1em;"></div>
+        <section class="schedule" id="schedule"></section>
+        <div class="card" style="margin-bottom:10px;">
+          <strong style="font-size:1.12em;">Points Table:</strong>
           <div class="points-table-wrap">
             <table id="pointsTable"></table>
           </div>
         </div>
-        <div id="summary" style="margin-bottom:15px;color:#ffe57f;font-weight:bold;font-size:1.1em;"></div>
-        <section class="schedule" id="schedule"></section>
         <div id="toast" class="toast"></div>
       </main>
     </div>
@@ -273,7 +288,7 @@
       }
     }
 
-    // --- Points Table (Leaderboard) ---
+    // --- Points Table ---
     function renderPlayerPointsInputs() {
       const table = document.getElementById('pointsTable');
       table.innerHTML = `
